@@ -2,9 +2,9 @@ import streamlit as st
 import json
 from services.comparator import compare_images
 
-st.set_page_config(page_title="Pixel Integrity", layout="wide")
+st.set_page_config(page_title="Image Integrity", layout="wide")
 
-st.title("🔍 Pixel Integrity Checker")
+st.title("🔍 Image Integrity Checker")
 
 # ----------------------------------------------------
 # SESSION STATE (ONLY FOR RESULT)
