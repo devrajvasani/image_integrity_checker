@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
-from skimage.metrics import structural_similarity as ssim, peak_signal_noise_ratio as psnr
+from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import peak_signal_noise_ratio as psnr
 
-def calculate_metrics(file1, file2):
+
+def calculate_transfer_metrics(file1, file2):
 
     file1.seek(0)
     file2.seek(0)
@@ -10,31 +12,34 @@ def calculate_metrics(file1, file2):
     img1 = cv2.imdecode(np.frombuffer(file1.read(), np.uint8), cv2.IMREAD_COLOR)
     img2 = cv2.imdecode(np.frombuffer(file2.read(), np.uint8), cv2.IMREAD_COLOR)
 
-    if img1.shape != img2.shape:
-        return {"error": "Images have different resolutions. Cannot compute structural metrics."}
+    if img1 is None or img2 is None:
+        return {"error": "Invalid image format"}
 
+    resolution_changed = img1.shape != img2.shape
+
+    if resolution_changed:
+        return {
+            "resolution_changed": True,
+            "message": "Resolution changed. Image was resized."
+        }
+
+    # Structural similarity
     ssim_score = ssim(img1, img2, channel_axis=2)
+
+    # PSNR
     psnr_score = psnr(img1, img2)
 
-    pixel_diff = int(np.sum(img1 != img2))
-
-    hist1 = cv2.calcHist([img1], [0], None, [256], [0, 256])
-    hist2 = cv2.calcHist([img2], [0], None, [256], [0, 256])
-    hist_corr = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
-
+    # Sharpness comparison
     sharp1 = cv2.Laplacian(img1, cv2.CV_64F).var()
     sharp2 = cv2.Laplacian(img2, cv2.CV_64F).var()
 
-    noise1 = np.std(img1)
-    noise2 = np.std(img2)
+    sharpness_drop = ((sharp1 - sharp2) / sharp1) * 100 if sharp1 != 0 else 0
 
     return {
-        "SSIM": ssim_score,
-        "PSNR": psnr_score,
-        "Pixel Difference": pixel_diff,
-        "Histogram Correlation": hist_corr,
-        "Sharpness Image 1": sharp1,
-        "Sharpness Image 2": sharp2,
-        "Noise Image 1": noise1,
-        "Noise Image 2": noise2
+        "resolution_changed": False,
+        "ssim": round(ssim_score, 6),
+        "psnr_db": round(psnr_score, 2),
+        "sharpness_original": round(sharp1, 2),
+        "sharpness_transferred": round(sharp2, 2),
+        "sharpness_drop_percent": round(sharpness_drop, 2)
     }
